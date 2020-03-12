@@ -1,0 +1,22 @@
+// This exercise is for student to get acquainted with using thread and block IDs for thread identification
+// as well as synchronization between host and device
+
+#include <stdio.h>
+__global__ void hello_GPU1(void){
+   int i = blockIdx.x * blockDim.x + threadIdx.x;
+   printf("Hello from GPU1[%d]!\n", i);
+   }
+
+__global__ void hello_GPU2(void){
+   int i = blockIdx.x * blockDim.x + threadIdx.x;
+   printf("Hello from GPU2[%d]!\n", i);
+   }
+
+int main(void){
+   hello_GPU1<<<1,4>>>(); // 4 threads
+   hello_GPU2<<<2,3>>>(); // 6 threads
+   printf("Hello from CPU!\n");
+   cudaDeviceSynchronize(); // wait for all threads to be completed
+   return 0;
+   }
+

@@ -1,0 +1,73 @@
+// This exercise applies the techniques learnt in earlier exercises
+// The weekly sale figure is store as a 2D array
+// The price list is stored as a 1D array
+// 7 thread blocks are launched - one for each of the weekdays
+// 4 threads are used within each block to compute the dot-product between price and item
+
+#include <stdio.h>
+#define N 4   // number of items
+
+__global__ 
+void vector_mac(float *d_amt, float *d_p, int *d_s, int n){
+   __shared__ float tmp[N]; // local shared memory
+
+   int i = blockIdx.x * blockDim.x + threadIdx.x; //  index into the global memory
+
+   tmp[threadIdx.x] = d_p[threadIdx.x] * d_s[i];  // within each block, thread start at 0
+   
+   __syncthreads(); // wait for all threads to complete execution
+
+   if (threadIdx.x==0){  // use thread 0 of each block to sum the amount
+      float sum = 0;
+      for (int j = 0; j < n; j++)
+         sum = sum + tmp[j];
+      *(d_amt+blockIdx.x) = sum; // store into global memory
+      }
+    }
+
+
+
+int main(void){
+   float item_price[N] = {29.99, 14.99, 9.99, 24.99};
+
+   int weekly_sale[7][N] = {   {  3, 5,  2,   7},    // Monday
+                               {  2, 4,  5,   1},
+							   {  0, 3,  3,   1},
+                               {  3, 5,  4,   4},
+   			                   {  4, 5,  5,   3},
+                               { 10, 13, 21, 16},
+   			                   {  8, 11, 15,  8}   }; // Sunday
+
+   float amount[7] = {0,0,0,0,0,0,0}; // initialize to 0
+
+   float *d_price;
+   float *d_amount;
+   int *d_sale; 
+
+   cudaMalloc((void**)&d_price, sizeof(float)*N); // price of N items
+   cudaMalloc((void**)&d_sale, sizeof(int)*N*7);  // 7 days of sale number
+   cudaMalloc((void**)&d_amount, sizeof(float)*7);// daily sale amount
+
+   cudaMemcpy(d_price, item_price, sizeof(float)*N, cudaMemcpyHostToDevice);
+   cudaMemcpy(d_sale, weekly_sale[0], sizeof(int)*N*7, cudaMemcpyHostToDevice);
+
+   vector_mac<<<7,N>>>(d_amount, d_price, d_sale, N); // 7 thread blocks, each with N (4) threads
+   // each block compute one daily total amount and store into corresponding global memory d_amount
+
+   cudaMemcpy(amount, d_amount, sizeof(float)*7, cudaMemcpyDeviceToHost);
+
+   cudaFree(d_price);
+   cudaFree(d_amount);
+   cudaFree(d_sale);
+
+   printf("Day   Sale\n");
+   printf("Mon %7.2f\n",  amount[0]);
+   printf("Tue %7.2f\n",  amount[1]);
+   printf("Wed %7.2f\n",  amount[2]);
+   printf("Thu %7.2f\n",  amount[3]);
+   printf("Fri %7.2f\n",  amount[4]);
+   printf("Sat %7.2f\n",  amount[5]);
+   printf("Sun %7.2f\n",  amount[6]);
+  
+   return 0;
+   }
