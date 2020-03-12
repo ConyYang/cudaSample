@@ -1,1 +1,1 @@
-# cudaSample
+# NTU CE3001 Lab
